@@ -27,6 +27,9 @@ const chatSubmitElement = document.querySelector('#chat_message_submit')
 /**
  * Functions
  */
+function scrollToBottom() {
+    chatLogElement.scrollTop = chatLogElement.scrollHeight
+}
 
 
 function getCookie(name) {
@@ -62,6 +65,10 @@ function sendMessage() {
 function onChatMessage(data) {
     console.log('onChatMessage', data);
     if (data.type === 'chat_message') {
+        let tmpInfo = document.querySelector('.tmp-info');
+        if (tmpInfo) {
+            tmpInfo.remove()
+        }
 
         if (data.agent) {
             const html = `
@@ -92,15 +99,35 @@ function onChatMessage(data) {
                 </div>`
             chatLogElement.innerHTML += html;
         }
+        scrollToBottom()
+    } else if (data.type === 'users_update') {
+        const html = `<p class="mt-2">The admin/agent has joined the chat!</p>`
+        chatLogElement.innerHTML += html;
+    } else if (data.type === 'writing_active') {
+        if (data.agent) {
+            let tmpInfo = document.querySelector('.tmp-info');
+            if (tmpInfo) {
+                tmpInfo.remove()
+            }
+            const html = `
+                <div class="tmp-info flex w-full mt-2 space-x-3 max-w-md">
+                    <div class="flex-shrink-0 h-10 w-10 rounded-full bg-gray-300 text-center pt-2">
+                        ${data.initials}
+                    </div>
+                    <div>
+                        <div class="bg-gray-300 p-3 rounded-l-lg rounded-br-lg">
+                            <p class="text-sm">admin/agent is typing</p>
+                        </div>
+                    </div>
+                </div>`
+            chatLogElement.innerHTML += html;
+        }
+        
     }
 }
 
 async function joinChatRoom() {
-    console.log("Join Chat Room");
-
     chatName = chatNameElement.value;
-    console.log("Join as:", chatName);
-    console.log("Room uuid:", chatRoomUuid);
 
     data = new FormData();
     data.append('name', chatName);
@@ -131,6 +158,8 @@ async function joinChatRoom() {
     
     chatSocket.onopen = function(e) {
         console.log("OnOpen - chat Socket has been opened")
+
+        scrollToBottom()
     }
     
     chatSocket.onclose = function(e) {
@@ -175,4 +204,13 @@ chatInputElement.onkeyup = function(e) {
     if (e.keyCode === 13) {
         sendMessage()
     }
+}
+
+chatInputElement.onfocus = function(e) {
+    chatSocket.send(JSON.stringify({
+        'type': 'update',
+        'message': 'writing_active',
+        'name': chatName,
+        'agent': ''
+    }))
 }
